@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zeus Translator</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    :root {
+      --neon-pink: #ff00cc;
+      --neon-blue: #00ccff;
+      --neon-green: #00ff99;
+      --neon-yellow: #ffcc00;
+      --bg-dark: #0c0a1e;
+      --panel-bg: #14122a;
+      --text: #fff;
+    }
+
+    body {
+      background: linear-gradient(135deg, #0c0a1e, #2a1b5a, #0d0b26);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 16px;
+      position: relative;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      padding: 24px 0 20px;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, var(--neon-pink), var(--neon-blue));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 0 8px rgba(0, 204, 255, 0.3);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: clamp(1rem, 4vw, 1.2rem);
+      opacity: 0.85;
+      margin-bottom: 24px;
+      font-style: italic;
+      line-height: 1.4;
+    }
+
+    .translator {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    @media (min-width: 768px) {
+      .translator {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .panel {
+      background: rgba(10, 8, 25, 0.8);
+      border-radius: 16px;
+      padding: 22px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(100, 100, 200, 0.1);
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: -2px; left: -2px; right: -2px; bottom: -2px;
+      border-radius: 18px;
+      background: linear-gradient(45deg, var(--neon-pink), var(--neon-blue), var(--neon-green), var(--neon-yellow));
+      z-index: -1;
+      filter: blur(10px);
+      opacity: 0.5;
+    }
+
+    .panel::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 16px;
+      background: inherit;
+      z-index: -1;
+    }
+
+    .panel h2 {
+      font-size: 1.4rem;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    select, textarea, button {
+      width: 100%;
+      padding: 14px;
+      margin-bottom: 16px;
+      background: var(--panel-bg);
+      border: 1px solid #4a4277;
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: all 0.25s ease;
+    }
+
+    select:focus, textarea:focus {
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 0 3px rgba(0, 204, 255, 0.3);
+    }
+
+    textarea {
+      min-height: 180px;
+      resize: vertical;
+      line-height: 1.5;
+      font-size: 1.05rem;
+    }
+
+    button {
+      background: linear-gradient(90deg, var(--neon-pink), var(--neon-blue));
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 1.05rem;
+      padding: 14px;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(255, 0, 204, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .copy-btn {
+      background: linear-gradient(90deg, #00cc66, var(--neon-green));
+      margin-top: 12px;
+    }
+
+    .example {
+      background: rgba(0, 204, 255, 0.08);
+      padding: 12px;
+      border-radius: 10px;
+      margin: 14px 0;
+      font-family: monospace;
+      font-size: 0.95rem;
+    }
+
+    /* --- МАЛЕНЬКАЯ КНОПКА "Добавить язык" --- */
+    .custom-lang-btn {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--neon-yellow), #ff6600);
+      color: #000;
+      border: none;
+      border-radius: 50%;
+      box-shadow: 0 3px 8px rgba(255, 204, 0, 0.5);
+      cursor: pointer;
+      z-index: 100;
+      font-size: 18px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .custom-lang-btn:hover {
+      transform: scale(1.15) rotate(8deg);
+      box-shadow: 0 4px 12px rgba(255, 204, 0, 0.7);
+    }
+
+    .custom-lang-btn::before {
+      content: '+';
+    }
+
+    /* Модальное окно */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .modal-content {
+      background: #0f0d25;
+      border-radius: 18px;
+      width: 100%;
+      max-width: 580px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(255, 102, 0, 0.5);
+      border: 1px solid var(--neon-yellow);
+      position: relative;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .close-modal {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      font-size: 1.6rem;
+      color: var(--neon-yellow);
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    .modal h3 {
+      color: var(--neon-yellow);
+      margin-bottom: 18px;
+      font-size: 1.6rem;
+    }
+
+    .modal p, .modal li {
+      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+
+    .modal a {
+      color: var(--neon-blue);
+      text-decoration: none;
+    }
+
+    .modal a:hover {
+      text-decoration: underline;
+    }
+
+    .highlight {
+      background: rgba(255, 204, 0, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.8rem;
+      opacity: 0.6;
+      padding: 0 10px;
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(-10px); }
+      20% { opacity: 1; transform: translateY(0); }
+      80% { opacity: 1; }
+      100% { opacity: 0; transform: translateY(-5px); }
+    }
+
+    .copy-feedback {
+      position: absolute;
+      top: -30px;
+      left: 0;
+      background: #2a2745;
+      color: #aaffaa;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      animation: fadeInOut 1.5s forwards;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>⚡ Zeus Translator</h1>
+      <p class="subtitle">больше, чем переводчик на выдуманные языки</p>
+    </header>
+
+    <div class="translator">
+      <div class="panel">
+        <h2>🔤 Исходный язык</h2>
+        <select id="fromLang">
+          <option value="ru">Русский</option>
+          <option value="en">Английский</option>
+        </select>
+        <textarea id="inputText" placeholder="Напр.: «Я же твой друг!» или «hello»"></textarea>
+        <button id="translateBtn">→ Перевести →</button>
+      </div>
+
+      <div class="panel">
+        <h2>🔤 Целевой язык</h2>
+        <select id="toLang">
+          <option value="ru">Русский</option>
+          <option value="en">Английский</option>
+          <option value="cip">Ципалитский</option>
+          <option value="zev">Зевсонский</option>
+        </select>
+        <div class="result">
+          <textarea id="outputText" placeholder="Результат перевода появится здесь..." readonly></textarea>
+          <button id="copyBtn" class="copy-btn">📋 Скопировать</button>
+        </div>
+        <div class="example">
+          Примеры:<br>
+          <b>ru → cip:</b> «Я же твой друг!» → «Ч ej йовт друн!»<br>
+          <b>en → zev:</b> «school» → «shkola»
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>💡 Ципалитский: каждое слово зеркально + замены (и→i, ж→j, з→z, в→iн) • Зевсонский: латиница по правилам транслитерации</p>
+    </footer>
+  </div>
+
+  <!-- ✅ Маленькая кнопка -->
+  <button class="custom-lang-btn" id="customLangBtn" title="Добавить свой язык"></button>
+
+  <!-- Модальное окно -->
+  <div class="modal" id="customLangModal">
+    <div class="modal-content">
+      <button class="close-modal" id="closeModal">&times;</button>
+      <h3>Добавить собственный язык</h3>
+      <p>Хотите, чтобы <strong>Zeus Translator</strong> поддерживал ваш вымышленный язык?</p>
+      <p><strong>Инструкция:</strong></p>
+      <ol>
+        <li>Напишите в Telegram: <a href="https://t.me/user_6574" target="_blank">@user_6574</a></li>
+        <li>Опишите:
+          <ul style="margin-left: 20px; margin-top: 6px;">
+            <li>Название языка</li>
+            <li>Правила перевода (фонетика, орфография, грамматика)</li>
+            <li>Исключения (например: «я» → «ч», «друг» → «друн»)</li>
+            <li>5–10 примеров: «привет» → «tevирп» и т.д.</li>
+          </ul>
+        </li>
+        <li>Оплатите разработку (от 500 ₽)</li>
+        <li>Получите обновлённый переводчик со своим языком!</li>
+      </ol>
+      <p style="font-style: italic; color: #aaa; margin-top: 16px;">
+        🌟 Эксклюзивная услуга от автора Zeus Translator.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // === СЛОВАРИ ===
+      const enToRuDict = {
+        "hello": "привет", "hi": "привет", "world": "мир", "cat": "кот", "dog": "собака",
+        "book": "учебник", "friend": "друг", "computer": "компьютер", "school": "школа",
+        "object": "объект", "zeus": "зевс", "zevsonia": "зевсония", "i": "я", "you": "ты",
+        "he": "он", "she": "она", "we": "мы", "they": "они"
+      };
+
+      const ruToEnDict = {};
+      for (let [en, ru] of Object.entries(enToRuDict)) {
+        ruToEnDict[ru] = en;
+      }
+
+      const zevExceptions = { "зевсония": "Zevsonia", "зевс": "Zevs" };
+      const cipExceptions = { "я": "ч", "друг": "друн" };
+      const cipReplacements = { "и": "i", "ж": "j", "з": "z" };
+
+      const zevTranslit = {
+        "а":"a","б":"b","в":"v","г":"g","д":"d","е":"e","ё":"yo","ж":"j","з":"z","и":"i",
+        "й":"y","к":"k","л":"l","м":"m","н":"n","о":"o","п":"p","р":"r","с":"s","т":"t",
+        "у":"u","ф":"f","х":"h","ц":"c","ч":"ch","ш":"sh","щ":"shch","ъ":"\"","ы":"y","ь":"'",
+        "э":"e","ю":"yu","я":"ya",
+        "А":"A","Б":"B","В":"V","Г":"G","Д":"D","Е":"E","Ё":"Yo","Ж":"J","З":"Z","И":"I",
+        "Й":"Y","К":"K","Л":"L","М":"M","Н":"N","О":"O","П":"P","Р":"R","С":"S","Т":"T",
+        "У":"U","Ф":"F","Х":"H","Ц":"C","Ч":"Ch","Ш":"Sh","Щ":"Shch","Ъ":"\"","Ы":"Y","Ь":"'",
+        "Э":"E","Ю":"Yu","Я":"Ya"
+      };
+
+      // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+      function processWords(text, transformer) {
+        return text.replace(/([а-яА-ЯёЁa-zA-Z]+)/g, transformer);
+      }
+
+      function flipAndReplaceCip(word) {
+        const lower = word.toLowerCase();
+        if (cipExceptions[lower]) {
+          const res = cipExceptions[lower];
+          return (word[0] === word[0].toUpperCase())
+            ? res.charAt(0).toUpperCase() + res.slice(1)
+            : res;
+        }
+        if (lower === "в") return "iн";
+        let flipped = word.split('').reverse().join('');
+        flipped = flipped.replace(/[ижз]/g, c => cipReplacements[c]);
+        return flipped;
+      }
+
+      function translitZev(word) {
+        const lower = word.toLowerCase();
+        if (zevExceptions[lower]) {
+          const res = zevExceptions[lower];
+          return (word[0] === word[0].toUpperCase())
+            ? res.charAt(0).toUpperCase() + res.slice(1)
+            : res;
+        }
+        return word.replace(/./g, c => zevTranslit[c] || c);
+      }
+
+      // === ПЕРЕВОД ===
+      function doTranslate() {
+        const fromEl = document.getElementById('fromLang');
+        const toEl = document.getElementById('toLang');
+        const inputEl = document.getElementById('inputText');
+        const outputEl = document.getElementById('outputText');
+
+        if (!fromEl || !toEl || !inputEl || !outputEl) {
+          console.error("❌ Элементы интерфейса не найдены");
+          return;
+        }
+
+        const from = fromEl.value;
+        const to = toEl.value;
+        const input = inputEl.value.trim();
+
+        if (from === to) {
+          outputEl.value = "⚠️ Исходный и целевой языки не должны совпадать.";
+          return;
+        }
+        if (!input) {
+          outputEl.value = "";
+          return;
+        }
+
+        let intermediate = (from === 'en') ? processWords(input, w => enToRuDict[w.toLowerCase()] || w) : input;
+        let result = "";
+
+        if (to === 'en') {
+          result = (from === 'ru')
+            ? processWords(input, w => ruToEnDict[w.toLowerCase()] || w)
+            : processWords(intermediate, w => ruToEnDict[w.toLowerCase()] || w);
+        } else if (to === 'ru') {
+          result = (from === 'en') ? intermediate : input;
+        } else if (to === 'cip') {
+          result = processWords(intermediate, flipAndReplaceCip);
+        } else if (to === 'zev') {
+          result = processWords(intermediate, translitZev);
+        } else {
+          result = "❓ Неизвестная комбинация языков.";
+        }
+
+        outputEl.value = result;
+      }
+
+      // === КОПИРОВАНИЕ ===
+      async function copyToClipboard() {
+        const outputEl = document.getElementById('outputText');
+        if (!outputEl || !outputEl.value) return;
+
+        try {
+          await navigator.clipboard.writeText(outputEl.value);
+          const btn = document.getElementById('copyBtn');
+          if (!btn) return;
+          const fb = document.createElement('div');
+          fb.className = 'copy-feedback';
+          fb.textContent = '✓ Скопировано!';
+          btn.style.position = 'relative';
+          btn.appendChild(fb);
+          setTimeout(() => { if (fb.parentNode) fb.parentNode.removeChild(fb); }, 1500);
+        } catch (err) {
+          // fallback
+          outputEl.select();
+          try {
+            document.execCommand('copy');
+            const btn = document.getElementById('copyBtn');
+            if (btn) {
+              const fb = document.createElement('div');
+              fb.className = 'copy-feedback';
+              fb.textContent = '✓ Скопировано!';
+              btn.style.position = 'relative';
+              btn.appendChild(fb);
+              setTimeout(() => { if (fb.parentNode) fb.parentNode.removeChild(fb); }, 1500);
+            }
+          } catch (e) {
+            alert('Не удалось скопировать. Разрешите доступ к буферу обмена.');
+          }
+        }
+      }
+
+      // === СИНХРОНИЗАЦИЯ ЯЗЫКОВ ===
+      function syncLangs() {
+        const fromEl = document.getElementById('fromLang');
+        const toEl = document.getElementById('toLang');
+        if (!fromEl || !toEl) return;
+        if (toEl.value === fromEl.value) {
+          const opts = Array.from(toEl.options).filter(opt => opt.value !== fromEl.value);
+          if (opts.length) toEl.value = opts[0].value;
+        }
+      }
+
+      // === МОДАЛЬНОЕ ОКНО ===
+      const modal = document.getElementById('customLangModal');
+      const btnOpen = document.getElementById('customLangBtn');
+      const btnClose = document.getElementById('closeModal');
+
+      if (btnOpen && modal) {
+        btnOpen.onclick = (e) => {
+          e.stopPropagation();
+          modal.style.display = 'flex';
+        };
+      }
+      if (btnClose && modal) {
+        btnClose.onclick = (e) => {
+          e.stopPropagation();
+          modal.style.display = 'none';
+        };
+      }
+      if (modal) {
+        modal.onclick = (e) => {
+          if (e.target === modal) modal.style.display = 'none';
+        };
+      }
+
+      // === ПОДКЛЮЧЕНИЕ ОБРАБОТЧИКОВ ===
+      const translateBtn = document.getElementById('translateBtn');
+      const copyBtn = document.getElementById('copyBtn');
+      const fromLang = document.getElementById('fromLang');
+      const toLang = document.getElementById('toLang');
+
+      if (translateBtn) translateBtn.addEventListener('click', doTranslate);
+      if (copyBtn) copyBtn.addEventListener('click', copyToClipboard);
+      if (fromLang) fromLang.addEventListener('change', syncLangs);
+      if (toLang) toLang.addEventListener('change', syncLangs);
+
+      // Enter → перевод (Ctrl+Enter / Cmd+Enter)
+      const inputText = document.getElementById('inputText');
+      if (inputText) {
+        inputText.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            doTranslate();
+          }
+        });
+      }
+
+      // Инициализация
+      syncLangs();
+    });
+  </script>
+</body>
+</html>
