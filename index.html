@@ -303,6 +303,7 @@
     </header>
 
     <div class="translator">
+      <!-- Левая панель: только ru/en -->
       <div class="panel">
         <h2>🔤 Исходный язык</h2>
         <select id="fromLang">
@@ -313,13 +314,12 @@
         <button id="translateBtn">→ Перевести →</button>
       </div>
 
+      <!-- Правая панель: только zev/cip, zev — первым -->
       <div class="panel">
         <h2>🔤 Целевой язык</h2>
         <select id="toLang">
-          <option value="ru">Русский</option>
-          <option value="en">Английский</option>
-          <option value="cip">Ципалитский</option>
           <option value="zev">Зевсонский</option>
+          <option value="cip">Ципалитский</option>
         </select>
         <div class="result">
           <textarea id="outputText" placeholder="Результат перевода появится здесь..." readonly></textarea>
@@ -327,8 +327,8 @@
         </div>
         <div class="example">
           Примеры:<br>
-          <b>ru → cip:</b> «Я же твой друг!» → «Ч ej йовт друн!»<br>
-          <b>en → zev:</b> «school» → «shkola»
+          <b>ru → zev:</b> «школа» → «shkola»<br>
+          <b>ru → cip:</b> «Я же твой друг!» → «Ч ej йовт друн!»
         </div>
       </div>
     </div>
@@ -338,7 +338,7 @@
     </footer>
   </div>
 
-  <!-- ✅ Маленькая кнопка -->
+  <!-- Маленькая кнопка -->
   <button class="custom-lang-btn" id="customLangBtn" title="Добавить свой язык"></button>
 
   <!-- Модальное окно -->
@@ -443,30 +443,23 @@
         const to = toEl.value;
         const input = inputEl.value.trim();
 
-        if (from === to) {
-          outputEl.value = "⚠️ Исходный и целевой языки не должны совпадать.";
-          return;
-        }
         if (!input) {
           outputEl.value = "";
           return;
         }
 
-        let intermediate = (from === 'en') ? processWords(input, w => enToRuDict[w.toLowerCase()] || w) : input;
-        let result = "";
+        // Получаем промежуточный текст на русском (если from === 'en')
+        let intermediate = (from === 'en')
+          ? processWords(input, w => enToRuDict[w.toLowerCase()] || w)
+          : input;
 
-        if (to === 'en') {
-          result = (from === 'ru')
-            ? processWords(input, w => ruToEnDict[w.toLowerCase()] || w)
-            : processWords(intermediate, w => ruToEnDict[w.toLowerCase()] || w);
-        } else if (to === 'ru') {
-          result = (from === 'en') ? intermediate : input;
+        let result = "";
+        if (to === 'zev') {
+          result = processWords(intermediate, translitZev);
         } else if (to === 'cip') {
           result = processWords(intermediate, flipAndReplaceCip);
-        } else if (to === 'zev') {
-          result = processWords(intermediate, translitZev);
         } else {
-          result = "❓ Неизвестная комбинация языков.";
+          result = "❓ Ошибка: неизвестный язык";
         }
 
         outputEl.value = result;
@@ -507,50 +500,12 @@
         }
       }
 
-      // === СИНХРОНИЗАЦИЯ ЯЗЫКОВ ===
-      function syncLangs() {
-        const fromEl = document.getElementById('fromLang');
-        const toEl = document.getElementById('toLang');
-        if (!fromEl || !toEl) return;
-        if (toEl.value === fromEl.value) {
-          const opts = Array.from(toEl.options).filter(opt => opt.value !== fromEl.value);
-          if (opts.length) toEl.value = opts[0].value;
-        }
-      }
-
-      // === МОДАЛЬНОЕ ОКНО ===
-      const modal = document.getElementById('customLangModal');
-      const btnOpen = document.getElementById('customLangBtn');
-      const btnClose = document.getElementById('closeModal');
-
-      if (btnOpen && modal) {
-        btnOpen.onclick = (e) => {
-          e.stopPropagation();
-          modal.style.display = 'flex';
-        };
-      }
-      if (btnClose && modal) {
-        btnClose.onclick = (e) => {
-          e.stopPropagation();
-          modal.style.display = 'none';
-        };
-      }
-      if (modal) {
-        modal.onclick = (e) => {
-          if (e.target === modal) modal.style.display = 'none';
-        };
-      }
-
-      // === ПОДКЛЮЧЕНИЕ ОБРАБОТЧИКОВ ===
+      // === ИНИЦИАЛИЗАЦИЯ ===
       const translateBtn = document.getElementById('translateBtn');
       const copyBtn = document.getElementById('copyBtn');
-      const fromLang = document.getElementById('fromLang');
-      const toLang = document.getElementById('toLang');
 
       if (translateBtn) translateBtn.addEventListener('click', doTranslate);
       if (copyBtn) copyBtn.addEventListener('click', copyToClipboard);
-      if (fromLang) fromLang.addEventListener('change', syncLangs);
-      if (toLang) toLang.addEventListener('change', syncLangs);
 
       // Enter → перевод (Ctrl+Enter / Cmd+Enter)
       const inputText = document.getElementById('inputText');
@@ -563,8 +518,9 @@
         });
       }
 
-      // Инициализация
-      syncLangs();
+      // Значение по умолчанию — Зевсонский
+      const toLang = document.getElementById('toLang');
+      if (toLang) toLang.value = 'zev';
     });
   </script>
 </body>
