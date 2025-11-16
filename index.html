@@ -307,7 +307,7 @@
           <option value="ru">Русский</option>
           <option value="en">Английский</option>
         </select>
-        <textarea id="inputText" placeholder="Напр.: «Вася и ваня» или «hello»"></textarea>
+        <textarea id="inputText" placeholder="Напр.: «в и школе» или «hello»"></textarea>
         <button id="translateBtn">→ Перевести →</button>
       </div>
 
@@ -323,14 +323,15 @@
         </div>
         <div class="example">
           Примеры:<br>
-          <b>ru → zev:</b> «вася» → «ßася», «Вася» → «Васяъ», «иван» → «ißанъ»<br>
+          <b>ru → zev:</b> «в и школе» → «ß i школеъ»<br>
+          <b>ru → zev:</b> «Зевс и Зевсония» → «Зевс i Зевсония»<br>
           <b>ru → cip:</b> «Я же твой друг!» → «Ч ej йовт друн!»
         </div>
       </div>
     </div>
 
     <footer>
-      <p>💡 Зевсонский: только «в»→«ß», «и»→«i», +«ъ» на конце (если согласная и нет ь/ъ)</p>
+      <p>💡 Зевсонский: в→ß, и→i, +ъ на конце согласных (если нет ь/ъ). Ципалитский: слова зеркально + замены.</p>
     </footer>
   </div>
 
@@ -371,35 +372,48 @@
         "he": "он", "she": "она", "we": "мы", "they": "они"
       };
 
+      // === ВСПОМОГАТЕЛЬНЫЕ ДАННЫЕ ===
+      const zevExceptions = { "зевс": "Зевс", "зевсония": "Зевсония" };
       const cipExceptions = { "я": "ч", "друг": "друн" };
       const cipReplacements = { "и": "i", "ж": "j", "з": "z" };
 
-      const VOWELS = 'аеёиоуыэюяАЕЁИОУЫЭЮЯ';
-      const CONSONANTS = 'бвгджзйклмнпрстфхцчшщБВГДЖЗЙКЛМНПРСТФХЦЧШЩ';
+      // Гласные (все)
+      const vowels = 'аеёиоуыэюяАЕЁИОУЫЭЮЯ';
 
-      // === 🔥 ГЛАВНОЕ ИЗМЕНЕНИЕ: замена ТОЛЬКО строчной кириллической "в" (U+0432) → "ß" ===
+      // === ФУНКЦИЯ: добавить ъ в конец, если нужно ===
+      function addHardSignIfNeeded(word) {
+        if (!word) return word;
+        const last = word[word.length - 1];
+        // Если уже есть ь или ъ — ничего не делаем
+        if (last === 'ь' || last === 'ъ') return word;
+        // Если последняя буква — согласная → добавляем ъ
+        if (!vowels.includes(last)) {
+          return word + 'ъ';
+        }
+        return word;
+      }
+
+      // === ФУНКЦИЯ: трансформация слова в Зевсонский ===
       function toZevsonsky(word) {
         const lower = word.toLowerCase();
-        if (lower === 'зевс') return 'Зевс';
-        if (lower === 'зевсония') return 'Зевсония';
-
-        // Замена: ТОЛЬКО кириллическая строчная 'в' (U+0432) → 'ß'
-        // Заглавная 'В' (U+0412) остаётся без изменений!
-        let res = word
-          .replace(/\u0432/g, 'ß')   // кириллическая 'в' → ß
-          .replace(/и/g, 'i')
-          .replace(/И/g, 'I');
-
-        // Добавление ъ, если нужно
-        const lastChar = res.slice(-1);
-        if (lastChar === 'ъ' || lastChar === 'ь') return res;
-        if (CONSONANTS.includes(lastChar)) {
-          res += 'ъ';
+        // Исключения (чувствительны к регистру только в сохранении исходного)
+        if (zevExceptions[lower]) {
+          return zevExceptions[lower];
         }
+
+        // 1. Замены: в → ß, и → i
+        let res = word
+          .replace(/в/g, 'ß')
+          .replace(/и/g, 'i');
+
+        // 2. Добавляем ъ в конце, если нужно
+        res = addHardSignIfNeeded(res);
+
         return res;
       }
 
-      function flipAndReplaceCip(word) {
+      // === ФУНКЦИЯ: трансформация слова в Ципалитский ===
+      function toCipalitsky(word) {
         const lower = word.toLowerCase();
         if (cipExceptions[lower]) {
           const res = cipExceptions[lower];
@@ -409,43 +423,77 @@
         }
         if (lower === "в") return "iн";
         let flipped = word.split('').reverse().join('');
-        flipped = flipped.replace(/[ижз]/g, c => cipReplacements[c]);
+        flipped = flipped.replace(/[ижз]/g, c => cipReplacements[c] || c);
         return flipped;
       }
 
+      // === ПРОЦЕССИНГ ПО СЛОВАМ (сохраняет пунктуацию) ===
       function processWords(text, transformer) {
-        return text.replace(/([а-яА-ЯёЁ]+)/g, transformer);
+        return text.replace(/([а-яА-ЯёЁ]+)/g, (match) => transformer(match));
       }
 
+      // === ПЕРЕВОДЧИКИ ===
+      function translateEnToRu(text) {
+        return processWords(text, word => {
+          const lower = word.toLowerCase();
+          return enToRuDict[lower] || word;
+        });
+      }
+
+      function translateToZev(text) {
+        return processWords(text, toZevsonsky);
+      }
+
+      function translateToCip(text) {
+        return processWords(text, toCipalitsky);
+      }
+
+      // === ОСНОВНАЯ ФУНКЦИЯ ПЕРЕВОДА ===
       function doTranslate() {
         const fromEl = document.getElementById('fromLang');
         const toEl = document.getElementById('toLang');
         const inputEl = document.getElementById('inputText');
         const outputEl = document.getElementById('outputText');
 
-        if (!fromEl || !toEl || !inputEl || !outputEl) return;
+        if (!fromEl || !toEl || !inputEl || !outputEl) {
+          console.error("❌ Элементы не найдены");
+          outputEl.value = "Ошибка: интерфейс не загружен.";
+          return;
+        }
 
         const from = fromEl.value;
         const to = toEl.value;
-        const input = inputEl.value.trim();
-        if (!input) return outputEl.value = "";
+        const input = inputEl.value;
 
-        let intermediate = (from === 'en')
-          ? processWords(input, w => enToRuDict[w.toLowerCase()] || w)
-          : input;
+        if (!input.trim()) {
+          outputEl.value = "";
+          return;
+        }
 
-        outputEl.value = (to === 'zev')
-          ? processWords(intermediate, toZevsonsky)
-          : (to === 'cip')
-            ? processWords(intermediate, flipAndReplaceCip)
-            : "❓ Ошибка";
+        let ruText = (from === 'en') ? translateEnToRu(input) : input;
+        let result = "";
+
+        try {
+          if (to === 'zev') {
+            result = translateToZev(ruText);
+          } else if (to === 'cip') {
+            result = translateToCip(ruText);
+          }
+        } catch (e) {
+          console.error("Ошибка перевода:", e);
+          result = "❌ Ошибка при обработке текста.";
+        }
+
+        outputEl.value = result;
       }
 
+      // === КОПИРОВАНИЕ ===
       async function copyToClipboard() {
-        const out = document.getElementById('outputText');
-        if (!out?.value) return;
+        const outputEl = document.getElementById('outputText');
+        if (!outputEl?.value) return;
+
         try {
-          await navigator.clipboard.writeText(out.value);
+          await navigator.clipboard.writeText(outputEl.value);
           const btn = document.getElementById('copyBtn');
           if (btn) {
             const fb = document.createElement('div');
@@ -455,22 +503,64 @@
             btn.appendChild(fb);
             setTimeout(() => fb.remove(), 1500);
           }
-        } catch (e) {
-          out.select();
+        } catch (err) {
+          outputEl.select();
           document.execCommand('copy');
+          // всё равно показываем feedback
+          const btn = document.getElementById('copyBtn');
+          if (btn) {
+            const fb = document.createElement('div');
+            fb.className = 'copy-feedback';
+            fb.textContent = '✓ Скопировано!';
+            btn.style.position = 'relative';
+            btn.appendChild(fb);
+            setTimeout(() => fb.remove(), 1500);
+          }
         }
       }
 
-      // Инициализация
-      document.getElementById('translateBtn')?.addEventListener('click', doTranslate);
-      document.getElementById('copyBtn')?.addEventListener('click', copyToClipboard);
-      document.getElementById('inputText')?.addEventListener('keydown', e => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-          e.preventDefault();
-          doTranslate();
-        }
-      });
-      document.getElementById('toLang')?.value = 'zev';
+      // === ИНИЦИАЛИЗАЦИЯ ===
+      const translateBtn = document.getElementById('translateBtn');
+      const copyBtn = document.getElementById('copyBtn');
+      const inputText = document.getElementById('inputText');
+
+      if (translateBtn) translateBtn.addEventListener('click', doTranslate);
+      if (copyBtn) copyBtn.addEventListener('click', copyToClipboard);
+      if (inputText) {
+        inputText.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            doTranslate();
+          }
+        });
+      }
+
+      // Значение по умолчанию — Зевсонский
+      const toLang = document.getElementById('toLang');
+      if (toLang) toLang.value = 'zev';
+
+      // Модальное окно
+      const modal = document.getElementById('customLangModal');
+      const btnOpen = document.getElementById('customLangBtn');
+      const btnClose = document.getElementById('closeModal');
+
+      if (btnOpen && modal) {
+        btnOpen.onclick = (e) => {
+          e.stopPropagation();
+          modal.style.display = 'flex';
+        };
+      }
+      if (btnClose && modal) {
+        btnClose.onclick = (e) => {
+          e.stopPropagation();
+          modal.style.display = 'none';
+        };
+      }
+      if (modal) {
+        modal.onclick = (e) => {
+          if (e.target === modal) modal.style.display = 'none';
+        };
+      }
     });
   </script>
 </body>
